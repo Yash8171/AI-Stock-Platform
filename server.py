@@ -64,6 +64,10 @@ async def login(req: AuthRequest):
         return {"message": "Success", "token": create_token(req.email), "user": {"name": user.get('name', req.email), "email": req.email}}
     raise HTTPException(status_code=401, detail="Invalid credentials")
 
+@app.get("/healthz")
+async def health_check():
+    return {"status": "healthy"}
+
 @app.get("/api/stocks")
 async def get_stocks():
     """Returns latest signals and data for all configured stocks."""
