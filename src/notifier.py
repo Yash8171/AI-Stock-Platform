@@ -170,3 +170,118 @@ def send_market_summary_email(user_email, stocks_summary):
     except Exception as e:
         print(f"Error sending market summary: {e}")
         return False
+
+def send_periodic_market_update_email(recipient_email, stocks_data, cycle_count=None):
+    """
+    Sends a periodic market update email during trading hours.
+    Called every 15-30 minutes by alert_job.py for all subscribers.
+    stocks_data: list of dicts with 'ticker', 'name', 'signal', 'price', 'accuracy'
+    """
+    if not config.SENDER_EMAIL or not config.SENDER_PASSWORD:
+        print(f"Skipping periodic email to {recipient_email}: SMTP credentials not configured.")
+        return False
+
+    from datetime import datetime
+    import pytz
+    tz = pytz.timezone('US/Eastern')
+    now = datetime.now(tz)
+    timestamp = now.strftime("%B %d, %Y %I:%M %p ET")
+    cycle_label = f"Update #{cycle_count}" if cycle_count else "Live Update"
+
+    msg = MIMEMultipart()
+    msg['From'] = config.SENDER_EMAIL
+    msg['To'] = recipient_email
+    msg['Subject'] = f"AlgoSignal AI: {cycle_label} — Live Market Signals 📊"
+
+    stock_rows = ""
+    for s in stocks_data:
+        color = "#00e676" if s['signal'] == "BUY" else ("#ff5252" if s['signal'] == "SELL" else "#8b949e")
+        badge_bg = "rgba(0,230,118,0.15)" if s['signal'] == "BUY" else ("rgba(255,82,82,0.15)" if s['signal'] == "SELL" else "rgba(139,148,158,0.15)")
+        accuracy = s.get('accuracy', 0.0)
+        stock_rows += f"""
+        <tr>
+            <td style="padding: 12px 16px; border-bottom: 1px solid #21262d;">
+                <strong style="color: #f0f6fc; font-size: 0.95rem;">{s.get('name', s['ticker'])}</strong>
+                <span style="color: #8b949e; font-size: 0.75rem; margin-left: 6px;">({s['ticker']})</span>
+            </td>
+            <td style="padding: 12px 16px; border-bottom: 1px solid #21262d;">
+                <span style="background:{badge_bg}; color:{color}; font-weight:800; padding:4px 12px; border-radius:20px; border:1px solid {color}40; font-size:0.85rem; letter-spacing:0.5px;">{s['signal']}</span>
+            </td>
+            <td style="padding: 12px 16px; border-bottom: 1px solid #21262d; color:#c9d1d9; font-size:0.95rem;">${s['price']:,.2f}</td>
+            <td style="padding: 12px 16px; border-bottom: 1px solid #21262d; color:#58a6ff; font-size:0.85rem;">{accuracy:.1f}%</td>
+        </tr>
+        """
+
+    html_content = f"""
+    <html>
+    <head>
+      <style>
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+        body {{ background-color: #0d1117; font-family: 'Segoe UI', Arial, sans-serif; }}
+      </style>
+    </head>
+    <body style="background-color:#0d1117; padding:30px 20px;">
+      <div style="max-width:680px; margin:0 auto; background:linear-gradient(160deg,#161b22,#0d1117); border:1px solid #30363d; border-radius:16px; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,0.6);">
+
+        <!-- Header -->
+        <div style="background:linear-gradient(90deg,#ff8c00,#ff6600); padding:24px 32px; display:flex; align-items:center; justify-content:space-between;">
+          <div>
+            <div style="font-size:22px; font-weight:900; color:#fff; letter-spacing:-0.5px;">&#x1F4C8; AlgoSignal AI</div>
+            <div style="font-size:13px; color:rgba(255,255,255,0.85); margin-top:4px;">Live Market Intelligence</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:11px; color:rgba(255,255,255,0.7); text-transform:uppercase; letter-spacing:1px;">Trading Hours Update</div>
+            <div style="font-size:13px; color:#fff; font-weight:600; margin-top:4px;">{timestamp}</div>
+          </div>
+        </div>
+
+        <!-- Body -->
+        <div style="padding:28px 32px;">
+          <p style="color:#c9d1d9; font-size:14px; line-height:1.6; margin-bottom:24px;">
+            Your AI engine has completed a market scan. Here are the latest signals across all monitored assets:
+          </p>
+
+          <!-- Table -->
+          <table style="width:100%; border-collapse:collapse; background:#0d1117; border-radius:10px; overflow:hidden; border:1px solid #21262d;">
+            <thead>
+              <tr style="background:#1c2128;">
+                <th style="text-align:left; padding:12px 16px; color:#8b949e; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px;">ASSET</th>
+                <th style="text-align:left; padding:12px 16px; color:#8b949e; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px;">SIGNAL</th>
+                <th style="text-align:left; padding:12px 16px; color:#8b949e; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px;">PRICE</th>
+                <th style="text-align:left; padding:12px 16px; color:#8b949e; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px;">ACCURACY</th>
+              </tr>
+            </thead>
+            <tbody>{stock_rows}</tbody>
+          </table>
+
+          <!-- CTA -->
+          <div style="text-align:center; margin-top:30px;">
+            <a href="http://localhost:8000" style="display:inline-block; background:linear-gradient(135deg,#ff8c00,#ff6600); color:#fff; padding:14px 32px; border-radius:10px; text-decoration:none; font-weight:700; font-size:0.95rem; letter-spacing:0.3px;">Open Live Dashboard &#x2192;</a>
+          </div>
+
+          <!-- Footer -->
+          <div style="margin-top:32px; padding-top:20px; border-top:1px solid #21262d; text-align:center;">
+            <p style="font-size:11px; color:#8b949e; line-height:1.8;">
+              This is a scheduled market update from AlgoSignal AI.<br>
+              <strong style="color:#c9d1d9;">Disclaimer:</strong> Not financial advice. AI signals are for informational purposes only.
+            </p>
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+    """
+
+    msg.attach(MIMEText(html_content, 'html'))
+
+    try:
+        server = smtplib.SMTP(config.SMTP_SERVER, config.SMTP_PORT)
+        server.starttls()
+        server.login(config.SENDER_EMAIL, config.SENDER_PASSWORD)
+        server.send_message(msg)
+        server.quit()
+        print(f"  Periodic update sent to {recipient_email}")
+        return True
+    except Exception as e:
+        print(f"  Failed to send periodic update to {recipient_email}: {e}")
+        return False

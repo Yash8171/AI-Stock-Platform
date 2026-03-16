@@ -6,6 +6,157 @@
     <title>Predictive Alerts | AlgoSignal AI</title>
     <link rel="stylesheet" href="css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        .alerts-hero {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+        .alerts-icon {
+            font-size: 3.5rem;
+            animation: pulse-ring 2s infinite;
+        }
+        @keyframes pulse-ring {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+        }
+        .alerts-title {
+            font-size: 2rem;
+            font-weight: 900;
+            text-align: center;
+            background: linear-gradient(135deg, #ff8c00, #ff6600);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: 0;
+        }
+        .alerts-subtitle {
+            color: var(--text-secondary);
+            text-align: center;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin: 0;
+        }
+        .alert-tiers {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            width: 100%;
+        }
+        @media (max-width: 560px) {
+            .alert-tiers { grid-template-columns: 1fr; }
+        }
+        .tier-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            transition: border-color 0.2s;
+        }
+        .tier-card:hover { border-color: #ff8c00; }
+        .tier-icon { font-size: 1.5rem; }
+        .tier-title {
+            font-size: 0.85rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #ff8c00;
+        }
+        .tier-desc {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+        .subscribe-box {
+            width: 100%;
+            background: linear-gradient(145deg, #161b22, #0d1117);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2rem;
+        }
+        .subscribe-box h3 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.1rem;
+            font-weight: 800;
+        }
+        .subscribe-box p {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            margin: 0 0 1.5rem 0;
+        }
+        .form-row {
+            display: flex;
+            gap: 0.75rem;
+        }
+        .form-row input {
+            flex: 1;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            color: #fff;
+            font-size: 0.9rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .form-row input:focus { border-color: #ff8c00; }
+        .form-row input::placeholder { color: var(--text-secondary); }
+        .activate-btn {
+            background: linear-gradient(135deg, #ff8c00, #ff6600);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 0.75rem 1.5rem;
+            font-size: 0.9rem;
+            font-weight: 700;
+            cursor: pointer;
+            white-space: nowrap;
+            font-family: inherit;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+        .activate-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .activate-btn:active { transform: translateY(0); }
+        .activate-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .result-msg {
+            display: none;
+            margin-top: 1rem;
+            padding: 0.75rem 1rem;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .result-msg.success {
+            background: rgba(0,230,118,0.1);
+            border: 1px solid rgba(0,230,118,0.3);
+            color: #00e676;
+        }
+        .result-msg.error {
+            background: rgba(255,82,82,0.1);
+            border: 1px solid rgba(255,82,82,0.3);
+            color: #ff5252;
+        }
+        .schedule-banner {
+            width: 100%;
+            background: rgba(88,166,255,0.08);
+            border: 1px solid rgba(88,166,255,0.2);
+            border-radius: 12px;
+            padding: 0.9rem 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.82rem;
+            color: #58a6ff;
+        }
+        .schedule-banner span:first-child { font-size: 1.1rem; flex-shrink: 0; }
+    </style>
 </head>
 <body>
     <div class="layout">
@@ -45,21 +196,46 @@
             </div>
         </aside>
 
-        <main class="main-content">
-            <div class="subscribe-pane">
-                <div class="glass-form">
-                    <span style="font-size: 3rem; margin-bottom: 2rem; display: block;">📨</span>
-                    <h2>Predictive Alerts</h2>
-                    <p style="color: var(--text-secondary); max-width: 500px; margin: 0 auto;">
-                        Get high-conviction signals delivered directly to your inbox. 
-                        Our AI engine executes background jobs every 15 minutes.
-                    </p>
-                    
-                    <form id="subscribeForm" class="form-group">
-                        <input type="email" id="email" placeholder="Enter your corporate or personal email..." required>
-                        <button type="submit" class="btn-primary">Activate Alerts</button>
-                    </form>
+        <main class="main-content" style="display:flex; align-items:center; justify-content:center;">
+            <div class="alerts-hero">
+                <div class="alerts-icon">📨</div>
+                <h1 class="alerts-title">Predictive Alert System</h1>
+                <p class="alerts-subtitle">
+                    Subscribe your email to receive AI-powered stock signals directly in your inbox.
+                    Two tiers of alerts — immediate confirmation now, then automatic updates during market hours.
+                </p>
 
+                <!-- Two tier explanation -->
+                <div class="alert-tiers">
+                    <div class="tier-card">
+                        <div class="tier-icon">⚡</div>
+                        <div class="tier-title">Instant Confirmation</div>
+                        <div class="tier-desc">The moment you click "Activate Alerts", a market snapshot is emailed to you — <strong style="color:#f0f6fc;">regardless of trading hours</strong>.</div>
+                    </div>
+                    <div class="tier-card">
+                        <div class="tier-icon">🔄</div>
+                        <div class="tier-title">Automatic Periodic Alerts</div>
+                        <div class="tier-desc">Our background engine sends live signal updates every 15–30 minutes <strong style="color:#f0f6fc;">during US trading hours</strong> (9:30 AM – 4:00 PM ET).</div>
+                    </div>
+                </div>
+
+                <!-- Trading hours banner -->
+                <div class="schedule-banner">
+                    <span>🕐</span>
+                    <span>Automated periodic emails run every 15 minutes Mon–Fri, 9:30 AM–4:00 PM Eastern Time. Signal-change alerts fire instantly at any time a BUY/SELL change is detected.</span>
+                </div>
+
+                <!-- Subscription form -->
+                <div class="subscribe-box">
+                    <h3>🔔 Activate Your Alerts</h3>
+                    <p>Enter your email below. You'll receive an immediate market snapshot plus automated updates during trading hours.</p>
+                    <form id="subscribeForm">
+                        <div class="form-row">
+                            <input type="email" id="alertEmail" placeholder="your@email.com" required autocomplete="email">
+                            <button type="submit" class="activate-btn" id="activateBtn">Activate Alerts</button>
+                        </div>
+                    </form>
+                    <div id="resultMsg" class="result-msg"></div>
                 </div>
             </div>
         </main>
@@ -68,5 +244,66 @@
     <div id="toast">Alerts Activated! Check your inbox soon.</div>
 
     <script src="js/app.js?v=3"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const emailInput = document.getElementById('alertEmail');
+            const form = document.getElementById('subscribeForm');
+            const btn = document.getElementById('activateBtn');
+            const resultMsg = document.getElementById('resultMsg');
+
+            // ── Auto-fill with logged-in user's email ──────────────────────
+            const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
+            if (currentUser && currentUser.email) {
+                emailInput.value = currentUser.email;
+                emailInput.style.opacity = '0.7';
+                emailInput.title = 'Using your account email';
+                // Add a small label to indicate it's the account email
+                const hint = document.createElement('div');
+                hint.style.cssText = 'font-size:0.75rem; color:#58a6ff; margin-top:0.4rem;';
+                hint.textContent = `✓ Using account email: ${currentUser.email}`;
+                form.insertBefore(hint, form.firstChild.nextSibling);
+            }
+
+            // ── Form submit handler ────────────────────────────────────────
+            if (form) {
+                form.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    const email = emailInput.value.trim();
+                    if (!email) return;
+
+                    btn.textContent = '⏳ Activating...';
+                    btn.disabled = true;
+                    resultMsg.style.display = 'none';
+
+                    try {
+                        const response = await fetch('/api/subscribe', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email })
+                        });
+                        const result = await response.json();
+
+                        resultMsg.textContent = result.message || (response.ok ? 'Alerts activated!' : 'Something went wrong.');
+                        resultMsg.className = 'result-msg ' + (response.ok ? 'success' : 'error');
+                        resultMsg.style.display = 'block';
+
+                        // Don't reset if email was pre-filled from account
+                        if (response.ok && !currentUser) form.reset();
+                    } catch (err) {
+                        resultMsg.textContent = '❌ Connection error. Please make sure the server is running.';
+                        resultMsg.className = 'result-msg error';
+                        resultMsg.style.display = 'block';
+                    } finally {
+                        btn.textContent = 'Activate Alerts';
+                        btn.disabled = false;
+                        // Restore account email if it was pre-filled
+                        if (currentUser && currentUser.email) {
+                            emailInput.value = currentUser.email;
+                        }
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>

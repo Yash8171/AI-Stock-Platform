@@ -5,7 +5,13 @@ from datetime import datetime
 from src.config import config
 from src.ml_engine import generate_signals
 from src.database import db
-from src.notifier import send_signal_email
+from src.notifier import send_signal_email, send_periodic_market_update_email
+
+TICKER_NAMES = {
+    'AAPL': 'Apple Inc.', 'MSFT': 'Microsoft Corp.', 'GOOGL': 'Alphabet Inc.',
+    'AMZN': 'Amazon.com Inc.', 'TSLA': 'Tesla, Inc.', 'NVDA': 'NVIDIA Corp.',
+    'META': 'Meta Platforms', 'SPY': 'S&P 500 ETF', 'QQQ': 'Nasdaq 100', 'JPM': 'JPMorgan Chase'
+}
 
 def is_trading_hours():
     """Checks if the current time is within US trading hours (9:30 AM - 4:00 PM ET, Mon-Fri)."""
@@ -22,11 +28,14 @@ def is_trading_hours():
     
     return start_time <= now <= end_time
 
-def run_alert_job():
-    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Starting AI Stock Alert Job...")
+def run_alert_job(cycle_count=None):
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Starting AI Stock Alert Job (Cycle #{cycle_count})...")
     
     # Check if it's trading hours (Optional: can be bypassed for testing)
-    if not is_trading_hours() and os.getenv("BYPASS_MARKET_CHECK") != "true":
+    trading_hours_active = is_trading_hours()
+    bypass = os.getenv("BYPASS_MARKET_CHECK") == "true"
+    
+    if not trading_hours_active and not bypass:
         print("Market is currently closed. Skipping alert cycle.")
         return
 
@@ -34,13 +43,13 @@ def run_alert_job():
     if not config.SENDER_EMAIL or not config.SENDER_PASSWORD:
         print("WARNING: SENDER_EMAIL or SENDER_PASSWORD not set in environment.")
         print("Emails will not be sent.")
-        
-    users = db.get_all_users()
-    if not users:
-        print("No users found in database.")
-        return
 
-    print(f"Found {len(users)} registered user(s). Processing {len(config.TARGET_TICKERS)} tickers...")
+    # ──────────────────────────────────────────────────────────────────────
+    # STEP 1: Generate fresh signals for all tickers
+    # ──────────────────────────────────────────────────────────────────────
+    print(f"Processing {len(config.TARGET_TICKERS)} tickers...")
+    current_signals = []   # For bulk periodic update
+    signal_change_alerts = []  # For individual signal-change emails
 
     for ticker in config.TARGET_TICKERS:
         try:
@@ -56,7 +65,6 @@ def run_alert_job():
             price = result['latest_price']
             accuracy = result['accuracy']
 
-            # --- NEW: Threshold-based Alerts ---
             # Retrieve previous price to detect large moves
             last_pred = db.get_latest_predictions()
             p_entry = next((p for p in last_pred if p.get('_id') == ticker), None)
@@ -67,11 +75,11 @@ def run_alert_job():
             price_moved_significantly = False
             if prev_price > 0:
                 change_pct = abs((price - prev_price) / prev_price) * 100
-                if change_pct >= 3.0: # 3% threshold
+                if change_pct >= 3.0:  # 3% threshold
                     price_moved_significantly = True
                     print(f"  [{ticker}] SIGNIFICANT PRICE MOVE detected: {change_pct:.2f}%")
 
-            # Always save to local/db as preferred
+            # Save to DB
             db.save_predictions(
                 result['ticker'], 
                 result['df_historical'].index[-1], 
@@ -79,59 +87,99 @@ def run_alert_job():
                 {
                     "accuracy": result['accuracy'],
                     "price": result['latest_price'],
-                    "confidence": 100.0 # Maintain user preference
+                    "confidence": 100.0
                 }
             )
 
-            # Detect alert triggers: Signal Change OR Significant Price Move
-            if current_signal in ["BUY", "SELL"] or price_moved_significantly:
-                should_notify = False
-                alert_type = ""
+            # Collect for bulk periodic update email
+            current_signals.append({
+                "ticker": ticker,
+                "name": TICKER_NAMES.get(ticker, ticker),
+                "signal": current_signal,
+                "price": price,
+                "accuracy": accuracy
+            })
 
-                if current_signal != previous_signal and current_signal in ["BUY", "SELL"]:
-                    should_notify = True
-                    alert_type = f"Signal Change to {current_signal}"
-                elif price_moved_significantly:
-                    should_notify = True
-                    alert_type = "Significant Price Volatility"
-
-                if should_notify:
-                    print(f"  [{ticker}] {alert_type} Notifying users...")
-                    
-                    # Notify registered users
-                    for user in users:
-                        email = user.get('email')
-                        name = user.get('name', 'User')
-                        if email:
-                            # We can update send_signal_email to accept an optional 'reason' if desired, 
-                            # but for now we keep the core contract.
-                            send_signal_email(email, name, ticker, current_signal, price, accuracy)
-                    
-                    # Notify alert-only subscribers
-                    subscribers = db.get_all_subscribers()
-                    for sub in subscribers:
-                        email = sub.get('email')
-                        if email:
-                            if not any(u.get('email') == email for u in users):
-                                send_signal_email(email, "Subscriber", ticker, current_signal, price, accuracy)
-                else:
-                    print(f"  [{ticker}] Signal maintained and low volatility. No alert.")
+            # Detect signal-change alerts (individual urgent emails)
+            if current_signal != previous_signal and current_signal in ["BUY", "SELL"]:
+                print(f"  [{ticker}] Signal change: {previous_signal} → {current_signal}")
+                signal_change_alerts.append({
+                    "ticker": ticker,
+                    "signal": current_signal,
+                    "price": price,
+                    "accuracy": accuracy
+                })
+            elif price_moved_significantly and current_signal in ["BUY", "SELL"]:
+                print(f"  [{ticker}] Significant price move + {current_signal} signal")
+                signal_change_alerts.append({
+                    "ticker": ticker,
+                    "signal": current_signal,
+                    "price": price,
+                    "accuracy": accuracy
+                })
             else:
-                print(f"  [{ticker}] Signal {current_signal} (no alert).")
-                
+                print(f"  [{ticker}] {current_signal} @ ${price:.2f} (no change alert)")
+
         except Exception as e:
             print(f"  [{ticker}] Error: {e}")
 
-    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Alert Job Cycle Completed.")
+    # ──────────────────────────────────────────────────────────────────────
+    # STEP 2: Send INDIVIDUAL SIGNAL-CHANGE alerts (urgent)
+    # ──────────────────────────────────────────────────────────────────────
+    if signal_change_alerts:
+        all_recipients = []
+        users = db.get_all_users()
+        for u in users:
+            if u.get('email'):
+                all_recipients.append((u['email'], u.get('name', 'User')))
+        for sub in db.get_all_subscribers():
+            email = sub.get('email')
+            if email and not any(r[0] == email for r in all_recipients):
+                all_recipients.append((email, "Subscriber"))
+        
+        for alert in signal_change_alerts:
+            for (email, name) in all_recipients:
+                send_signal_email(email, name, alert['ticker'], alert['signal'], alert['price'], alert['accuracy'])
+
+    # ──────────────────────────────────────────────────────────────────────
+    # STEP 3: Send PERIODIC BULK UPDATE to ALL subscribers every cycle
+    # (Only during trading hours - the whole job already respects this)
+    # ──────────────────────────────────────────────────────────────────────
+    if current_signals:
+        print(f"\nSending periodic market update to all subscribers (cycle #{cycle_count})...")
+        
+        # Gather all unique recipient emails
+        subscriber_emails = set()
+        for u in db.get_all_users():
+            if u.get('email'):
+                subscriber_emails.add(u['email'])
+        for sub in db.get_all_subscribers():
+            if sub.get('email'):
+                subscriber_emails.add(sub['email'])
+
+        if subscriber_emails:
+            for email in subscriber_emails:
+                send_periodic_market_update_email(email, current_signals, cycle_count)
+            print(f"  Periodic update sent to {len(subscriber_emails)} recipient(s).")
+        else:
+            print("  No subscribers yet — no periodic update sent.")
+    
+    print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Alert Job Cycle #{cycle_count} Completed.\n")
+
 
 if __name__ == "__main__":
     # Check for continuous run flag
     if os.getenv("RUN_CONTINUOUS") == "true":
-        interval = int(os.getenv("ALERT_INTERVAL_SECONDS", 1800)) # Default 30 mins
-        print(f"Starting Alert Job in continuous mode (Interval: {interval}s)...")
+        interval = int(os.getenv("ALERT_INTERVAL_SECONDS", 900))  # Default 15 mins
+        print(f"Starting Alert Job in continuous mode. Interval: {interval}s ({interval//60} mins).")
+        print(f"Will send periodic market updates EVERY cycle during trading hours (9:30 AM - 4:00 PM ET).")
+        print(f"Signal-change alerts will also fire urgently when detected.\n")
+        
+        cycle = 1
         while True:
-            run_alert_job()
-            print(f"Waiting {interval}s for next cycle...")
+            run_alert_job(cycle_count=cycle)
+            cycle += 1
+            print(f"Waiting {interval}s ({interval//60} min) for next cycle...\n")
             time.sleep(interval)
     else:
-        run_alert_job()
+        run_alert_job(cycle_count=1)

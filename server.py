@@ -168,36 +168,46 @@ async def get_stock_detail(ticker: str):
 
 @app.post("/api/subscribe")
 async def subscribe(request: SubscriptionRequest):
-    print(f"DEBUG: Received subscription request for {request.email}")
+    print(f"[Subscribe] Request received for: {request.email}")
     try:
-        success = db.add_subscriber(request.email)
-        print(f"DEBUG: DB add_subscriber result: {success}")
+        # Always register the subscriber (idempotent)
+        db.add_subscriber(request.email)
+        print(f"[Subscribe] Subscriber saved: {request.email}")
         
-        if success:
-            # Generate current summary for the email
-            print("DEBUG: Fetching stocks for summary...")
-            stocks = await get_stocks()
-            summary = []
-            for s in stocks:
-                summary.append({
-                    "ticker": s['ticker'],
-                    "name": next((val for key, val in {
-                        'AAPL': 'Apple Inc.', 'MSFT': 'Microsoft Corp.', 'GOOGL': 'Alphabet Inc.',
-                        'AMZN': 'Amazon.com Inc.', 'TSLA': 'Tesla, Inc.', 'NVDA': 'NVIDIA Corp.',
-                        'META': 'Meta Platforms', 'SPY': 'S&P 500 ETF', 'QQQ': 'Nasdaq 100', 'JPM': 'JPMorgan Chase'
-                    }.items() if key == s['ticker']), s['ticker']),
-                    "signal": s['signal'],
-                    "price": s['price']
-                })
-            
-            print(f"DEBUG: Sending summary email to {request.email}...")
-            email_sent = send_market_summary_email(request.email, summary)
-            print(f"DEBUG: Email send result: {email_sent}")
-            
-        return {"message": "Successfully subscribed" if success else "Already subscribed"}
+        # Fetch current stock signals for the welcome email
+        stocks = await get_stocks()
+        summary = []
+        ticker_names = {
+            'AAPL': 'Apple Inc.', 'MSFT': 'Microsoft Corp.', 'GOOGL': 'Alphabet Inc.',
+            'AMZN': 'Amazon.com Inc.', 'TSLA': 'Tesla, Inc.', 'NVDA': 'NVIDIA Corp.',
+            'META': 'Meta Platforms', 'SPY': 'S&P 500 ETF', 'QQQ': 'Nasdaq 100', 'JPM': 'JPMorgan Chase'
+        }
+        for s in stocks:
+            summary.append({
+                "ticker": s['ticker'],
+                "name": ticker_names.get(s['ticker'], s['ticker']),
+                "signal": s['signal'],
+                "price": s['price']
+            })
+        
+        # Send the immediate welcome/confirmation email - ALWAYS, regardless of trading hours
+        print(f"[Subscribe] Sending immediate confirmation email to {request.email}...")
+        email_sent = send_market_summary_email(request.email, summary)
+        print(f"[Subscribe] Email result: {'✓ Sent' if email_sent else '✗ Failed'}")
+        
+        if email_sent:
+            return {
+                "message": "✅ Alerts Activated! A market snapshot has been sent to your inbox. You will receive live updates every 15 minutes during trading hours (9:30 AM – 4:00 PM ET)."
+            }
+        else:
+            return {
+                "message": "⚡ Alerts Activated! You'll receive automated market signals during trading hours. (Check server email config if you don't receive a confirmation.)"
+            }
     except Exception as e:
-        print(f"DEBUG: ERROR in subscribe endpoint: {e}")
-        return {"message": f"Error: {str(e)}"}
+        print(f"[Subscribe] ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Subscription failed: {str(e)}")
 
 @app.get("/api/diagnostic")
 async def diagnostic():

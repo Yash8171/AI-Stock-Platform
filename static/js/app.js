@@ -301,8 +301,7 @@ if (document.getElementById('subscribeForm')) {
             });
             
             const result = await response.json();
-            showToast(result.message);
-            alert(result.message); // Fallback alert
+            showToast(result.message, response.ok ? 'success' : 'error');
             if (response.ok) e.target.reset();
         } catch (err) {
             showToast('Connection failed', 'error');
