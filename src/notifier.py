@@ -285,3 +285,116 @@ def send_periodic_market_update_email(recipient_email, stocks_data, cycle_count=
     except Exception as e:
         print(f"  Failed to send periodic update to {recipient_email}: {e}")
         return False
+
+def send_detailed_market_report_email(recipient_email, stocks_data):
+    """
+    Sends a highly detailed market analysis report on demand.
+    stocks_data: list of dicts with 'ticker', 'name', 'signal', 'price', 'accuracy', 'confidence'
+    """
+    if not config.SENDER_EMAIL or not config.SENDER_PASSWORD:
+        print(f"Skipping report email to {recipient_email}: SMTP credentials not configured.")
+        return False
+
+    from datetime import datetime
+    import pytz
+    tz = pytz.timezone('US/Eastern')
+    now = datetime.now(tz)
+    timestamp = now.strftime("%B %d, %Y %I:%M %p ET")
+
+    msg = MIMEMultipart()
+    msg['From'] = config.SENDER_EMAIL
+    msg['To'] = recipient_email
+    msg['Subject'] = f"AlgoSignal AI: Comprehensive Market Analysis Report 📑"
+
+    stock_rows = ""
+    for s in stocks_data:
+        color = "#00e676" if s['signal'] == "BUY" else ("#ff5252" if s['signal'] == "SELL" else "#8b949e")
+        acc = s.get('accuracy', 0.0)
+        conf = s.get('confidence', 0.0)
+        
+        stock_rows += f"""
+        <tr style="border-bottom: 1px solid #30363d;">
+            <td style="padding: 15px; background: #1c2128; border-radius: 8px 0 0 8px;">
+                <strong style="color: #f0f6fc; display: block;">{s.get('name', s['ticker'])}</strong>
+                <span style="color: #8b949e; font-size: 0.75rem;">{s['ticker']}</span>
+            </td>
+            <td style="padding: 15px; background: #1c2128; text-align: center;">
+                <span style="color: {color}; font-weight: 800; font-size: 0.9rem;">{s['signal']}</span>
+            </td>
+            <td style="padding: 15px; background: #1c2128; text-align: right; color: #c9d1d9;">
+                ${s['price']:,.2f}
+            </td>
+            <td style="padding: 15px; background: #1c2128; text-align: center;">
+                <div style="font-size: 0.85rem; color: #58a6ff;">{acc:.1f}%</div>
+                <div style="font-size: 0.65rem; color: #8b949e;">Accuracy</div>
+            </td>
+            <td style="padding: 15px; background: #1c2128; text-align: center; border-radius: 0 8px 8px 0;">
+                <div style="font-size: 0.85rem; color: #ff8c00;">{conf:.1f}%</div>
+                <div style="font-size: 0.65rem; color: #8b949e;">Confidence</div>
+            </td>
+        </tr>
+        <tr><td colspan="5" style="height: 10px;"></td></tr>
+        """
+
+    html_content = f"""
+    <html>
+      <body style="font-family: 'Inter', Arial, sans-serif; background-color: #0d1117; color: #ffffff; padding: 20px;">
+        <div style="max-width: 800px; margin: 0 auto; background: #161b22; border: 1px solid #30363d; border-radius: 20px; padding: 40px; box-shadow: 0 15px 35px rgba(0,0,0,0.4);">
+          
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #30363d; padding-bottom: 25px; margin-bottom: 30px;">
+            <div>
+              <h1 style="color: #ff8c00; margin: 0; font-size: 24px; font-weight: 900;">AlgoSignal AI Dashboard</h1>
+              <p style="color: #8b949e; margin: 5px 0 0 0; font-size: 14px;">Market Insight Summary - Generated On-Demand</p>
+            </div>
+            <div style="text-align: right; color: #8b949e; font-size: 12px;">
+              TIMESTAMP<br><span style="color: #c9d1d9;">{timestamp}</span>
+            </div>
+          </div>
+
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="color: #8b949e; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px;">
+                <th style="text-align: left; padding: 10px;">Asset</th>
+                <th style="text-align: center; padding: 10px;">Signal</th>
+                <th style="text-align: right; padding: 10px;">Price</th>
+                <th style="text-align: center; padding: 10px;">Model Score</th>
+                <th style="text-align: center; padding: 10px;">Conviction</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stock_rows}
+            </tbody>
+          </table>
+
+          <div style="margin-top: 40px; background: #0d1117; border-radius: 12px; padding: 25px; border: 1px solid #30363d;">
+            <h3 style="margin-top: 0; color: #f0f6fc; font-size: 16px;">💡 Intelligence Overview</h3>
+            <p style="color: #8b949e; font-size: 14px; line-height: 1.6; margin-bottom: 0;">
+              This report contains real-time predictive data for the top 10 tickers. 
+              Our models analyze technical indicators and historical price action to generate signals with high conviction scores.
+            </p>
+          </div>
+
+          <div style="text-align: center; margin-top: 40px;">
+            <a href="http://localhost:8000" style="background: #238636; color: white; padding: 15px 35px; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 16px; display: inline-block;">Open Predictive Analytics</a>
+          </div>
+
+          <p style="font-size: 11px; color: #484f58; text-align: center; margin-top: 40px; border-top: 1px solid #30363d; padding-top: 20px;">
+            AlgoSignal AI is a predictive engine. Signals are provided for educational purposes and do not constitute financial advice.
+          </p>
+        </div>
+      </body>
+    </html>
+    """
+
+    msg.attach(MIMEText(html_content, 'html'))
+
+    try:
+        server = smtplib.SMTP(config.SMTP_SERVER, config.SMTP_PORT)
+        server.starttls()
+        server.login(config.SENDER_EMAIL, config.SENDER_PASSWORD)
+        server.send_message(msg)
+        server.quit()
+        return True
+    except Exception as e:
+        print(f"Error sending detailed market report: {e}")
+        return False

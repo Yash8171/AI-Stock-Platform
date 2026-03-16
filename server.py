@@ -8,7 +8,7 @@ from pydantic import BaseModel, EmailStr
 from src.database import db
 from src.config import config
 from src.auth_utils import hash_password, verify_password
-from src.notifier import send_market_summary_email
+from src.notifier import send_market_summary_email, send_detailed_market_report_email
 import uvicorn
 import os
 
@@ -208,6 +208,46 @@ async def subscribe(request: SubscriptionRequest):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Subscription failed: {str(e)}")
+
+@app.post("/api/reports/send")
+async def send_report(request: SubscriptionRequest):
+    print(f"[Report] Sending detailed report to: {request.email}")
+    try:
+        # Fetch latest stocks with all metrics
+        stocks = await get_stocks()
+        
+        report_data = []
+        ticker_names = {
+            'AAPL': 'Apple Inc.', 'MSFT': 'Microsoft Corp.', 'GOOGL': 'Alphabet Inc.',
+            'AMZN': 'Amazon.com Inc.', 'TSLA': 'Tesla, Inc.', 'NVDA': 'NVIDIA Corp.',
+            'META': 'Meta Platforms', 'SPY': 'S&P 500 ETF', 'QQQ': 'Nasdaq 100', 'JPM': 'JPMorgan Chase'
+        }
+        
+        for s in stocks:
+            report_data.append({
+                "ticker": s['ticker'],
+                "name": ticker_names.get(s['ticker'], s['ticker']),
+                "signal": s['signal'],
+                "price": s['price'],
+                "accuracy": s['accuracy'],
+                "confidence": s['confidence']
+            })
+            
+        print(f"[Report] Prepared data for {len(report_data)} tickers. Sending email to {request.email}...")
+        email_sent = send_detailed_market_report_email(request.email, report_data)
+        
+        if email_sent:
+            print(f"[Report] SUCCESS: Report sent to {request.email}")
+            return {"message": "✅ Analysis Report Sent! Check your email for the detailed breakdown."}
+        else:
+            print(f"[Report] FAILED: send_detailed_market_report_email returned False for {request.email}")
+            raise HTTPException(status_code=500, detail="Failed to send report. Please check email configuration.")
+            
+    except Exception as e:
+        import traceback
+        print(f"[Report] CRITICAL ERROR: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/diagnostic")
 async def diagnostic():
