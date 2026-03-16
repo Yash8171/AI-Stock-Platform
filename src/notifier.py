@@ -396,5 +396,6 @@ def send_detailed_market_report_email(recipient_email, stocks_data):
         server.quit()
         return True
     except Exception as e:
-        print(f"Error sending detailed market report: {e}")
-        return False
+        err_msg = str(e)
+        print(f"Error sending detailed market report: {err_msg}")
+        return False, err_msg

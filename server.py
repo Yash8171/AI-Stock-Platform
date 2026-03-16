@@ -234,14 +234,14 @@ async def send_report(request: SubscriptionRequest):
             })
             
         print(f"[Report] Prepared data for {len(report_data)} tickers. Sending email to {request.email}...")
-        email_sent = send_detailed_market_report_email(request.email, report_data)
+        email_sent, err_msg = send_detailed_market_report_email(request.email, report_data)
         
         if email_sent:
             print(f"[Report] SUCCESS: Report sent to {request.email}")
             return {"message": "✅ Analysis Report Sent! Check your email for the detailed breakdown."}
         else:
-            print(f"[Report] FAILED: send_detailed_market_report_email returned False for {request.email}")
-            raise HTTPException(status_code=500, detail="Failed to send report. Please check email configuration.")
+            print(f"[Report] FAILED: {err_msg}")
+            raise HTTPException(status_code=500, detail=f"Email failed: {err_msg}")
             
     except Exception as e:
         import traceback
