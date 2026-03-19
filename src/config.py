@@ -19,6 +19,9 @@ class Config:
     TRAIN_TEST_SPLIT = 0.8
     TARGET_ACCURACY_THRESHOLD = 0.85
 
+    # External Links
+    BASE_URL = os.getenv("BASE_URL", "https://algosignal-ai.onrender.com")
+    
     # Email Alert Configuration
     SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
     SMTP_PORT = int(os.getenv("SMTP_PORT", 587))

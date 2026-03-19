@@ -79,7 +79,7 @@ def send_signal_email(user_email, user_name, ticker, signal, price, accuracy):
             </div>
 
             <div class="btn-container">
-              <a href="http://localhost:8000" class="btn">View Live Dashboard</a>
+              <a href="{config.BASE_URL}" class="btn">View Live Dashboard</a>
             </div>
             
             <div class="footer">
@@ -151,7 +151,7 @@ def send_market_summary_email(user_email, stocks_summary):
 
           <p style="font-size: 0.9rem; color: #8b949e;">Our engine will notify you the moment any of these signals change.</p>
           <div style="text-align: center; margin-top: 30px;">
-            <a href="http://localhost:8000" style="background: #238636; color: white; padding: 12px 25px; text-decoration: none; border-radius: 8px; font-weight: 600;">Open Dashboard</a>
+            <a href="{config.BASE_URL}" style="background: #238636; color: white; padding: 12px 25px; text-decoration: none; border-radius: 8px; font-weight: 600;">Open Dashboard</a>
           </div>
         </div>
       </body>
@@ -254,7 +254,7 @@ def send_periodic_market_update_email(recipient_email, stocks_data, cycle_count=
 
           <!-- CTA -->
           <div style="text-align:center; margin-top:30px;">
-            <a href="http://localhost:8000" style="display:inline-block; background:linear-gradient(135deg,#ff8c00,#ff6600); color:#fff; padding:14px 32px; border-radius:10px; text-decoration:none; font-weight:700; font-size:0.95rem; letter-spacing:0.3px;">Open Live Dashboard &#x2192;</a>
+            <a href="{config.BASE_URL}" style="display:inline-block; background:linear-gradient(135deg,#ff8c00,#ff6600); color:#fff; padding:14px 32px; border-radius:10px; text-decoration:none; font-weight:700; font-size:0.95rem; letter-spacing:0.3px;">Open Live Dashboard &#x2192;</a>
           </div>
 
           <!-- Footer -->
@@ -372,7 +372,7 @@ def send_detailed_market_report_email(recipient_email, stocks_data):
           </div>
 
           <div style="text-align: center; margin-top: 40px;">
-            <a href="http://localhost:8000" style="background: #238636; color: white; padding: 15px 35px; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 16px; display: inline-block;">Open Predictive Analytics</a>
+            <a href="{config.BASE_URL}" style="background: #238636; color: white; padding: 15px 35px; text-decoration: none; border-radius: 10px; font-weight: 700; font-size: 16px; display: inline-block;">Open Predictive Analytics</a>
           </div>
 
           <p style="font-size: 11px; color: #484f58; text-align: center; margin-top: 40px; border-top: 1px solid #30363d; padding-top: 20px;">
