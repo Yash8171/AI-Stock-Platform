@@ -1,6 +1,6 @@
 import jwt
 import datetime
-from fastapi import FastAPI, HTTPException, Depends, Security
+from fastapi import FastAPI, HTTPException, Depends, Security, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -9,6 +9,7 @@ from src.database import db
 from src.config import config
 from src.auth_utils import hash_password, verify_password
 from src.notifier import send_market_summary_email, send_detailed_market_report_email
+from alert_job import run_alert_job
 import uvicorn
 import os
 
@@ -167,14 +168,14 @@ async def get_stock_detail(ticker: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/subscribe")
-async def subscribe(request: SubscriptionRequest):
+async def subscribe(request: SubscriptionRequest, background_tasks: BackgroundTasks):
     print(f"[Subscribe] Request received for: {request.email}")
     try:
         # Always register the subscriber (idempotent)
         db.add_subscriber(request.email)
         print(f"[Subscribe] Subscriber saved: {request.email}")
         
-        # Fetch current stock signals for the welcome email
+        # Prepare data for summary email
         stocks = await get_stocks()
         summary = []
         ticker_names = {
@@ -190,19 +191,13 @@ async def subscribe(request: SubscriptionRequest):
                 "price": s['price']
             })
         
-        # Send the immediate welcome/confirmation email - ALWAYS, regardless of trading hours
-        print(f"[Subscribe] Sending immediate confirmation email to {request.email}...")
-        email_sent = send_market_summary_email(request.email, summary)
-        print(f"[Subscribe] Email result: {'✓ Sent' if email_sent else '✗ Failed'}")
+        # Dispatch email to background task for instant UI response
+        background_tasks.add_task(send_market_summary_email, request.email, summary)
+        print(f"[Subscribe] Background task added for: {request.email}")
         
-        if email_sent:
-            return {
-                "message": "✅ Alerts Activated! A market snapshot has been sent to your inbox. You will receive live updates every 15 minutes during trading hours (9:30 AM – 4:00 PM ET)."
-            }
-        else:
-            return {
-                "message": "⚡ Alerts Activated! You'll receive automated market signals during trading hours. (Check server email config if you don't receive a confirmation.)"
-            }
+        return {
+            "message": "✅ Alerts Activated! A market snapshot is being sent to your inbox. You'll receive live updates automatically during trading hours."
+        }
     except Exception as e:
         print(f"[Subscribe] ERROR: {e}")
         import traceback
@@ -210,8 +205,8 @@ async def subscribe(request: SubscriptionRequest):
         raise HTTPException(status_code=500, detail=f"Subscription failed: {str(e)}")
 
 @app.post("/api/reports/send")
-async def send_report(request: SubscriptionRequest):
-    print(f"[Report] Sending detailed report to: {request.email}")
+async def send_report(request: SubscriptionRequest, background_tasks: BackgroundTasks):
+    print(f"[Report] Scheduling detailed report for: {request.email}")
     try:
         # Fetch latest stocks with all metrics
         stocks = await get_stocks()
@@ -233,20 +228,23 @@ async def send_report(request: SubscriptionRequest):
                 "confidence": s['confidence']
             })
             
-        print(f"[Report] Prepared data for {len(report_data)} tickers. Sending email to {request.email}...")
-        email_sent, err_msg = send_detailed_market_report_email(request.email, report_data)
-        
-        if email_sent:
-            print(f"[Report] SUCCESS: Report sent to {request.email}")
-            return {"message": "✅ Analysis Report Sent! Check your email for the detailed breakdown."}
-        else:
-            print(f"[Report] FAILED: {err_msg}")
-            raise HTTPException(status_code=500, detail=f"Email failed: {err_msg}")
-            
+        # Dispatch to background task
+        background_tasks.add_task(send_detailed_market_report_email, request.email, report_data)
+        return {"message": "✅ Report Generation Started! You'll receive an email shortly."}
     except Exception as e:
         import traceback
         print(f"[Report] CRITICAL ERROR: {e}")
         traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/alerts/trigger-manual")
+async def trigger_manual_alerts(background_tasks: BackgroundTasks):
+    """Triggers an immediate background market analysis and alert cycle."""
+    try:
+        # Run in background to avoid client timeout
+        background_tasks.add_task(run_alert_job, cycle_count="Manual Trigger")
+        return {"message": "⚡ Market scan initiated! Fresh signals will be generated and sent to all subscribers shortly."}
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/diagnostic")

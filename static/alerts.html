@@ -252,7 +252,7 @@
                     <h3 style="font-size: 1.2rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 10px;">
                         <i style="color: var(--success-color);">🛡️</i> Platform Security
                     </h3>
-                    <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.8rem;">
+                    <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.8rem; margin-bottom: 2rem;">
                         <li style="display: flex; align-items: center; gap: 10px; font-size: 0.9rem;">
                             <i style="color: var(--success-color);">✓</i> No Login Required
                         </li>
@@ -266,6 +266,13 @@
                             <i style="color: var(--success-color);">✓</i> One-Click Unsubscribe
                         </li>
                     </ul>
+                    
+                    <div style="border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+                        <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 1rem;">System active during 9:30 AM – 4:00 PM ET automatically. Need an instant scan?</p>
+                        <button id="manualSyncBtn" class="nav-link" style="width: 100%; border: 1px solid var(--border-color); background: rgba(255,255,255,0.05); cursor: pointer; border-radius: 8px; padding: 10px; font-weight: 700; color: #fff;">
+                            <i>⚡</i> Trigger Manual Market Sync
+                        </button>
+                    </div>
                 </div>
             </div>
         </main>
@@ -280,6 +287,27 @@
             const form = document.getElementById('subscribeForm');
             const btn = document.getElementById('activateBtn');
             const resultMsg = document.getElementById('resultMsg');
+            const syncBtn = document.getElementById('manualSyncBtn');
+
+            // ── Manual Sync Button ──────────────────────────────────────────
+            if (syncBtn) {
+                syncBtn.addEventListener('click', async function() {
+                    const originalText = syncBtn.innerHTML;
+                    syncBtn.disabled = true;
+                    syncBtn.textContent = '⏳ Scanning Markets...';
+                    
+                    try {
+                        const response = await fetch('/api/alerts/trigger-manual', { method: 'POST' });
+                        const result = await response.json();
+                        alert(result.message);
+                    } catch (err) {
+                        alert('❌ Failed to trigger scan. Check server connection.');
+                    } finally {
+                        syncBtn.innerHTML = originalText;
+                        syncBtn.disabled = false;
+                    }
+                });
+            }
 
             // ── Auto-fill with logged-in user's email ──────────────────────
             const currentUser = JSON.parse(localStorage.getItem('user') || 'null');
