@@ -94,16 +94,20 @@ def send_signal_email(user_email, user_name, ticker, signal, price, accuracy):
 
     msg.attach(MIMEText(html_content, 'html'))
 
+    print(f"DEBUG: Attempting to send signal alert to {user_email} via {config.SMTP_SERVER}:465...")
     try:
         # Use SMTP_SSL on port 465 for secure, cloud-friendly connections
         server = smtplib.SMTP_SSL(config.SMTP_SERVER, 465, timeout=15)
         server.login(config.SENDER_EMAIL, config.SENDER_PASSWORD)
         server.send_message(msg)
         server.quit()
-        print(f"Alert sent to {user_email} for {ticker} ({signal})")
+        print(f"SUCCESS: Alert sent to {user_email} for {ticker} ({signal})")
         return True
+    except smtplib.SMTPAuthenticationError:
+        print(f"ERROR: SMTP Authentication failed for {config.SENDER_EMAIL}. Check if you need a 'Gmail App Password'.")
+        return False
     except Exception as e:
-        print(f"Failed to send email to {user_email}: {e}")
+        print(f"CRITICAL ERROR: Failed to send email to {user_email}: {e}")
         return False
 
 def send_market_summary_email(user_email, stocks_summary):
@@ -159,14 +163,19 @@ def send_market_summary_email(user_email, stocks_summary):
     """
     msg.attach(MIMEText(html_content, 'html'))
 
+    print(f"DEBUG: Attempting to send market summary to {user_email}...")
     try:
         server = smtplib.SMTP_SSL(config.SMTP_SERVER, 465, timeout=15)
         server.login(config.SENDER_EMAIL, config.SENDER_PASSWORD)
         server.send_message(msg)
         server.quit()
+        print(f"SUCCESS: Market summary sent to {user_email}")
         return True
+    except smtplib.SMTPAuthenticationError:
+        print(f"ERROR: SMTP Authentication failed. Check your App Password.")
+        return False
     except Exception as e:
-        print(f"Error sending market summary: {e}")
+        print(f"CRITICAL ERROR sending market summary to {user_email}: {e}")
         return False
 
 def send_periodic_market_update_email(recipient_email, stocks_data, cycle_count=None):
@@ -272,15 +281,19 @@ def send_periodic_market_update_email(recipient_email, stocks_data, cycle_count=
 
     msg.attach(MIMEText(html_content, 'html'))
 
+    print(f"DEBUG: Attempting to send periodic update to {recipient_email}...")
     try:
         server = smtplib.SMTP_SSL(config.SMTP_SERVER, 465, timeout=15)
         server.login(config.SENDER_EMAIL, config.SENDER_PASSWORD)
         server.send_message(msg)
         server.quit()
-        print(f"  Periodic update sent to {recipient_email}")
+        print(f"  SUCCESS: Periodic update sent to {recipient_email}")
         return True
+    except smtplib.SMTPAuthenticationError:
+        print(f"  ERROR: SMTP Authentication failed for {recipient_email}. Check App Password.")
+        return False
     except Exception as e:
-        print(f"  Failed to send periodic update to {recipient_email}: {e}")
+        print(f"  CRITICAL ERROR sending periodic update to {recipient_email}: {e}")
         return False
 
 def send_detailed_market_report_email(recipient_email, stocks_data):
@@ -385,13 +398,19 @@ def send_detailed_market_report_email(recipient_email, stocks_data):
 
     msg.attach(MIMEText(html_content, 'html'))
 
+    print(f"DEBUG: Attempting to send detailed report to {recipient_email}...")
     try:
         server = smtplib.SMTP_SSL(config.SMTP_SERVER, 465, timeout=15)
         server.login(config.SENDER_EMAIL, config.SENDER_PASSWORD)
         server.send_message(msg)
         server.quit()
+        print(f"SUCCESS: Detailed report sent to {recipient_email}")
         return True, "Success"
+    except smtplib.SMTPAuthenticationError:
+        err = "SMTP Authentication failed. Please check your Gmail App Password."
+        print(f"ERROR: {err}")
+        return False, err
     except Exception as e:
         err_msg = str(e)
-        print(f"Error sending detailed market report: {err_msg}")
+        print(f"CRITICAL ERROR sending report: {err_msg}")
         return False, err_msg
