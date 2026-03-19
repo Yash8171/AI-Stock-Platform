@@ -1,5 +1,5 @@
 const API_BASE = '/api';
-console.log('AlgoSignal AI JS v3 Loaded');
+console.log('AlgoSignal JS v3 Loaded');
 
 let allStocks = [];
 let currentFilter = 'all';
@@ -119,7 +119,7 @@ function createStockCard(stock) {
             <span class="signal-tag signal-${signalClass}">${stock.signal}</span>
         </div>
         <div class="price-section">
-            <div class="current-price">₹${stock.price.toLocaleString('en-IN', {minimumFractionDigits: 2})}</div>
+            <div class="current-price">$${stock.price.toLocaleString('en-US', {minimumFractionDigits: 2})}</div>
             <div style="color: ${changeColor}; font-size: 0.85rem; font-weight: 700; margin-top: 4px;">
                 ${changeIcon}${stock.change.toFixed(2)}%
             </div>

@@ -30,6 +30,6 @@ services:
       - key: RUN_CONTINUOUS
         value: "true"
       - key: ALERT_INTERVAL_SECONDS
-        value: "900"
+        value: "300"
       - key: PYTHON_VERSION
         value: 3.10.0

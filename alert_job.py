@@ -170,7 +170,7 @@ def run_alert_job(cycle_count=None):
 if __name__ == "__main__":
     # Check for continuous run flag
     if os.getenv("RUN_CONTINUOUS") == "true":
-        interval = int(os.getenv("ALERT_INTERVAL_SECONDS", 900))  # Default 15 mins
+        interval = int(os.getenv("ALERT_INTERVAL_SECONDS", 300))  # Default 5 mins
         print(f"Starting Alert Job in continuous mode. Interval: {interval}s ({interval//60} mins).")
         print(f"Will send periodic market updates EVERY cycle during trading hours (9:30 AM - 4:00 PM ET).")
         print(f"Signal-change alerts will also fire urgently when detected.\n")

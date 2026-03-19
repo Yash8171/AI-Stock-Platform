@@ -127,32 +127,19 @@ async def get_stock_detail(ticker: str):
         if ticker not in config.TARGET_TICKERS:
             raise HTTPException(status_code=404, detail="Ticker not monitored")
         
-        # In mock mode, we fetch from our local predictions list
-        preds = db._load_local_preds()
-        ticker_history = [p for p in preds if p.get('ticker') == ticker]
+        # Fetch combined history from local and Atlas
+        ticker_history = db.get_ticker_history(ticker, limit=20)
         
         if not ticker_history:
-            # Generate a realistic mock history point if none exists
-            import random
-            base_price = 150.0 + random.random() * 100.0
-            ticker_history = []
-            now = datetime.datetime.now()
-            for i in range(20):
-                date = now - datetime.timedelta(days=(20-i))
-                # Realistic price walk
-                base_price += (random.random() - 0.5) * 5.0 
-                ticker_history.append({
-                    "ticker": ticker,
-                    "date": date.strftime("%Y-%m-%d %H:%M:%S"),
-                    "signal": "BUY" if random.random() > 0.6 else ("SELL" if random.random() < 0.2 else "HOLD"),
-                    "metadata": {
-                        "price": base_price,
-                        "confidence": 100.0,
-                        "accuracy": 98.4
-                    }
-                })
+            # Emergency fallback: generate one point if totally empty so UI doesn't crash
+            ticker_history = [{
+                "ticker": ticker,
+                "date": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "signal": "HOLD",
+                "metadata": {"price": 100.0, "confidence": 50.0, "accuracy": 85.0}
+            }]
         
-        ticker_history = ticker_history[-20:] # Last 20 data points
+        ticker_history.reverse() # UI expects chronological for charts
         
         return {
             "ticker": ticker,

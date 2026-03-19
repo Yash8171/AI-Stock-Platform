@@ -151,6 +151,34 @@ class Database:
             })
 
         
+    def get_ticker_history(self, ticker, limit=20):
+        """Fetch combined history for a specific ticker from local and Atlas."""
+        history = []
+        try:
+            # 1. Load Local history
+            preds = self._load_local_preds()
+            history = [p for p in preds if p.get('ticker') == ticker]
+            
+            # 2. Integrate Atlas history
+            if self.is_connected():
+                atlas_history = list(self.db.predictions.find({"ticker": ticker}).sort("date", -1).limit(limit))
+                for ah in atlas_history:
+                    # Standardize date for comparison
+                    ah_date = ah.get('date')
+                    if hasattr(ah_date, 'strftime'):
+                        ah_date = ah_date.strftime('%Y-%m-%d %H:%M:%S')
+                    
+                    if not any(str(h.get('date')) == str(ah_date) for h in history):
+                        ah['date'] = str(ah_date) # Store as string for JSON consistency
+                        if '_id' in ah: del ah['_id'] # Don't return Mongo ObjectIDs
+                        history.append(ah)
+        except Exception as e:
+            print(f"DB ERROR in get_ticker_history: {e}")
+            
+        # Sort by date descending and return last 'limit' items
+        history.sort(key=lambda x: str(x.get('date')), reverse=True)
+        return history[:limit]
+
     def get_latest_predictions(self):
         latest_data = {} # ticker -> prediction_dict
         try:

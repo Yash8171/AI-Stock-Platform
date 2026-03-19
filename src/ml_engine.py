@@ -63,8 +63,8 @@ def train_model_for_ticker(ticker):
     print(f"{ticker} Model Display Accuracy (Train): {accuracy:.2%}")
     
     # Save the model
-    joblib.dump((model, features, accuracy), os.path.join(MODEL_DIR, f"{ticker}_model.pkl"))
-    return model, features, accuracy
+    joblib.dump((model, features, test_acc), os.path.join(MODEL_DIR, f"{ticker}_model.pkl"))
+    return model, features, test_acc
 
 def load_model_for_ticker(ticker):
     """Loads a saved model from disk. Returns model, features, accuracy."""
