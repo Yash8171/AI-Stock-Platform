@@ -56,14 +56,45 @@
         <main class="main-content">
             <header class="header">
                 <div>
-                    <h1>Market Overview</h1>
-                    <p style="color: var(--text-secondary);">Real-time AI prediction signals for top 10 assets</p>
+                    <h1>AI Signal Dashboard</h1>
+                    <p style="color: var(--text-secondary);">Real-time predictive intelligence for top NSE assets</p>
                 </div>
                 <div class="live-badge" id="refreshTimes">
                     <span class="pulse-dot"></span>
-                    LIVE ENGINE ACTIVE
+                    LIVE ENGINE
                 </div>
             </header>
+
+            <div class="stats-summary" id="statsSummary">
+                <div class="stat-card">
+                    <span class="stat-label">Active Buy</span>
+                    <div class="stat-val" style="color: var(--success-color);"><span id="buyCount">0</span></div>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Active Sell</span>
+                    <div class="stat-val" style="color: var(--danger-color);"><span id="sellCount">0</span></div>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Market Hold</span>
+                    <div class="stat-val" style="color: var(--color-hold);"><span id="holdCount">0</span></div>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">AI Accuracy</span>
+                    <div class="stat-val" style="color: #bb86fc;"><span id="aiAccuracy">92.9%</span></div>
+                </div>
+            </div>
+
+            <div class="controls-row">
+                <div class="search-container">
+                    <i>🔍</i>
+                    <input type="text" id="assetSearch" placeholder="Search assets..." onkeyup="filterAssets()">
+                </div>
+                <div class="filter-group">
+                    <button class="filter-btn active" onclick="setFilter('all', this)">All Assets</button>
+                    <button class="filter-btn" onclick="setFilter('buy', this)"><i>📈</i> Buy</button>
+                    <button class="filter-btn" onclick="setFilter('sell', this)"><i>📉</i> Sell</button>
+                </div>
+            </div>
 
             <div class="stock-grid" id="stocksGrid">
                 <!-- Stock cards will be injected here by JS -->

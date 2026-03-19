@@ -1,6 +1,9 @@
-// AlgoSignal AI - Core Frontend Logic
 const API_BASE = '/api';
 console.log('AlgoSignal AI JS v3 Loaded');
+
+let allStocks = [];
+let currentFilter = 'all';
+let searchQuery = '';
 
 // --- Auth Handling ---
 let currentUser = JSON.parse(localStorage.getItem('user')) || null;
@@ -43,19 +46,58 @@ async function handleAuthAction() {
 async function fetchStocks() {
     try {
         const response = await fetch(`${API_BASE}/stocks`);
-        const stocks = await response.json();
-        const grid = document.getElementById('stocksGrid');
-        if (!grid) return;
+        allStocks = await response.json();
         
-        grid.innerHTML = '';
-        stocks.forEach(stock => {
-            const card = createStockCard(stock);
-            grid.appendChild(card);
-        });
+        updateStatsSummary(allStocks);
+        renderStocks();
     } catch (error) {
         console.error('Error fetching stocks:', error);
         showToast('Failed to sync with AI engine', 'error');
     }
+}
+
+function updateStatsSummary(stocks) {
+    const buyCount = stocks.filter(s => s.signal.toLowerCase() === 'buy').length;
+    const sellCount = stocks.filter(s => s.signal.toLowerCase() === 'sell').length;
+    const holdCount = stocks.filter(s => s.signal.toLowerCase() === 'hold').length;
+
+    if (document.getElementById('buyCount')) document.getElementById('buyCount').textContent = buyCount;
+    if (document.getElementById('sellCount')) document.getElementById('sellCount').textContent = sellCount;
+    if (document.getElementById('holdCount')) document.getElementById('holdCount').textContent = holdCount;
+}
+
+function setFilter(filter, btn) {
+    currentFilter = filter;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderStocks();
+}
+
+function filterAssets() {
+    searchQuery = document.getElementById('assetSearch').value.toLowerCase();
+    renderStocks();
+}
+
+function renderStocks() {
+    const grid = document.getElementById('stocksGrid');
+    if (!grid) return;
+    
+    let filtered = allStocks.filter(stock => {
+        const matchesSearch = stock.ticker.toLowerCase().includes(searchQuery) || 
+                              getName(stock.ticker).toLowerCase().includes(searchQuery);
+        const matchesFilter = currentFilter === 'all' || stock.signal.toLowerCase() === currentFilter;
+        return matchesSearch && matchesFilter;
+    });
+
+    grid.innerHTML = '';
+    if (filtered.length === 0) {
+        grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--text-secondary);">No assets match your criteria</div>';
+        return;
+    }
+
+    filtered.forEach(stock => {
+        grid.appendChild(createStockCard(stock));
+    });
 }
 
 function createStockCard(stock) {
@@ -65,30 +107,41 @@ function createStockCard(stock) {
     
     const signalClass = stock.signal.toLowerCase();
     const changeClass = stock.change >= 0 ? 'trend-up' : 'trend-down';
-    const changeIcon = stock.change >= 0 ? '▲' : '▼';
+    const changeColor = stock.change >= 0 ? '#00e676' : '#ff5252';
+    const changeIcon = stock.change >= 0 ? '+' : '';
 
     card.innerHTML = `
-        <div class="stock-header">
-            <div>
-                <h3 class="stock-ticker">${stock.ticker}</h3>
-                <p class="stock-name">${getName(stock.ticker)}</p>
+        <div class="card-header">
+            <div class="ticker-info">
+                <p style="color: var(--text-secondary); font-size: 0.7rem; font-weight: 700; margin-bottom: 2px;">${stock.ticker}</p>
+                <h3>${getName(stock.ticker)}</h3>
             </div>
             <span class="signal-tag signal-${signalClass}">${stock.signal}</span>
         </div>
-        <div class="price-container">
-            <div class="price-value">$${stock.price.toFixed(2)}</div>
-            <div class="price-change ${changeClass}">${changeIcon} ${Math.abs(stock.change).toFixed(2)}%</div>
+        <div class="price-section">
+            <div class="current-price">₹${stock.price.toLocaleString('en-IN', {minimumFractionDigits: 2})}</div>
+            <div style="color: ${changeColor}; font-size: 0.85rem; font-weight: 700; margin-top: 4px;">
+                ${changeIcon}${stock.change.toFixed(2)}%
+            </div>
         </div>
-        <div class="metric-row">
-            <span>Confidence</span>
-            <span>${stock.confidence.toFixed(1)}%</span>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1.5rem;">
+            <div class="metric-box">
+                <p style="font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Confidence</p>
+                <p style="font-size: 1rem; font-weight: 800; color: ${signalClass === 'buy' ? 'var(--success-color)' : (signalClass === 'sell' ? 'var(--danger-color)' : 'var(--color-hold)')};">${stock.confidence.toFixed(0)}%</p>
+            </div>
+            <div class="metric-box">
+                <p style="font-size: 0.65rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Accuracy</p>
+                <p style="font-size: 1rem; font-weight: 800;">${stock.accuracy.toFixed(1)}%</p>
+            </div>
         </div>
-        <div class="confidence-bar">
-            <div class="confidence-fill" style="width: ${stock.confidence}%"></div>
-        </div>
-        <div class="metric-row" style="margin-top: 1rem; border-top: 1px solid var(--border-color); padding-top: 0.5rem;">
-            <span style="font-size: 0.7rem; color: var(--text-secondary);">Model Accuracy</span>
-            <span style="font-size: 0.7rem;">${stock.accuracy.toFixed(1)}%</span>
+        <div style="margin-top: 1.5rem;">
+            <p style="font-size: 0.65rem; color: var(--text-secondary); display: flex; justify-content: space-between; font-weight: 700;">
+                <span>Signal Strength</span>
+                <span>${stock.confidence.toFixed(0)}%</span>
+            </p>
+            <div class="accuracy-bar" style="height: 4px; background: rgba(255,255,255,0.05); margin-top: 8px;">
+                <div class="bar-fill" style="width: ${stock.confidence}%; background: ${signalClass === 'buy' ? 'var(--success-color)' : (signalClass === 'sell' ? 'var(--danger-color)' : 'var(--color-hold)')};"></div>
+            </div>
         </div>
     `;
     return card;
