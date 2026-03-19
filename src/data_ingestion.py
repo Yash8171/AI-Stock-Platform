@@ -5,21 +5,36 @@ import ta
 import datetime
 from .config import config
 
+import requests
+
 def fetch_data(ticker, lookback_years=config.LOOKBACK_PERIOD_YEARS):
-    """Fetch historical daily data for a given ticker."""
+    """Fetch historical daily data for a given ticker with a custom session to avoid cloud blocks."""
     end_date = datetime.datetime.now()
     start_date = end_date - datetime.timedelta(days=365 * lookback_years)
     
+    # Create a custom session with a User-Agent to avoid being blocked on Render
+    session = requests.Session()
+    session.headers.update({
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    })
+    
     try:
-        df = yf.download(ticker, start=start_date, end=end_date, progress=False)
-        if df.empty:
+        print(f"DEBUG: Downloading data for {ticker} from {start_date.date()} to {end_date.date()}...")
+        # Use the session in yf.download
+        df = yf.download(ticker, start=start_date, end=end_date, progress=False, session=session)
+        
+        if df is None or df.empty:
+            print(f"WARNING: No data returned for {ticker}. yfinance might be throttled or ticker is invalid.")
             return None
-        # Flatten MultiIndex columns if present (yfinance sometimes does this on single ticker)
+            
+        # Flatten MultiIndex columns if present
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = [c[0] for c in df.columns]
+        
+        print(f"DEBUG: Successfully fetched {len(df)} rows for {ticker}")
         return df
     except Exception as e:
-        print(f"Error fetching data for {ticker}: {e}")
+        print(f"CRITICAL ERROR fetching data for {ticker}: {e}")
         return None
 
 def engineer_features(df):
