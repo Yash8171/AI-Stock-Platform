@@ -64,6 +64,7 @@ def run_alert_job(cycle_count=None):
             current_signal = result['signal']
             price = result['latest_price']
             accuracy = result['accuracy']
+            confidence_pct = result.get('confidence', 100.0)
 
             # Retrieve previous price to detect large moves
             last_pred = db.get_latest_predictions()
@@ -101,16 +102,17 @@ def run_alert_job(cycle_count=None):
             })
 
             # Detect signal-change alerts (individual urgent emails)
-            if current_signal != previous_signal and current_signal in ["BUY", "SELL"]:
-                print(f"  [{ticker}] Signal change: {previous_signal} → {current_signal}")
+            # Threshold for urgent email alerts is 0.6 (60% confidence)
+            if current_signal != previous_signal and current_signal in ["BUY", "SELL"] and confidence_pct >= 60.0:
+                print(f"  [{ticker}] Signal change: {previous_signal} → {current_signal} (Conf: {confidence_pct:.1f}%)")
                 signal_change_alerts.append({
                     "ticker": ticker,
                     "signal": current_signal,
                     "price": price,
                     "accuracy": accuracy
                 })
-            elif price_moved_significantly and current_signal in ["BUY", "SELL"]:
-                print(f"  [{ticker}] Significant price move + {current_signal} signal")
+            elif price_moved_significantly and current_signal in ["BUY", "SELL"] and confidence_pct >= 60.0:
+                print(f"  [{ticker}] Significant price move + {current_signal} signal (Conf: {confidence_pct:.1f}%)")
                 signal_change_alerts.append({
                     "ticker": ticker,
                     "signal": current_signal,
