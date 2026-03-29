@@ -93,8 +93,7 @@ function setFilter(filter, btn) {
 }
 
 function filterAssets() {
-    searchQuery = document.getElementById('assetSearch').value.toLowerCase();
-    renderStocks();
+    // Deprecated for topSearch listener
 }
 
 function renderStocks() {
@@ -177,44 +176,61 @@ function getName(ticker) {
 
 // --- Tabular View ---
 async function renderTabularData() {
-    const tbody = document.getElementById('tableBody');
-    if (!tbody) return;
+    if (!document.getElementById('tableBody')) return;
 
     try {
         const response = await fetch(`${API_BASE}/stocks`);
-        const stocks = await response.json();
-        
-        tbody.innerHTML = '';
-        stocks.forEach(stock => {
-            const tr = document.createElement('tr');
-            const changeClass = stock.change >= 0 ? 'trend-up' : 'trend-down';
-            
-            tr.innerHTML = `
-                <td>
-                    <div class="ticker-badge">
-                        <span class="ticker-symbol">${stock.ticker}</span>
-                        <span style="font-size: 0.8rem;">${getName(stock.ticker)}</span>
-                    </div>
-                </td>
-                <td>$${stock.price.toFixed(2)}</td>
-                <td class="${changeClass}">${stock.change >= 0 ? '+' : ''}${stock.change.toFixed(2)}%</td>
-                <td><span class="signal-pill signal-${stock.signal.toLowerCase()}">${stock.signal}</span></td>
-                <td>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <div class="confidence-bar-container">
-                            <div class="confidence-fill" style="width: ${stock.confidence}%"></div>
-                        </div>
-                        <span style="font-size: 0.8rem;">${stock.confidence.toFixed(1)}%</span>
-                    </div>
-                </td>
-                <td>${stock.accuracy.toFixed(1)}%</td>
-                <td><button class="btn-primary" onclick="window.location.href='analysis.html?ticker=${stock.ticker}'" style="padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.7rem;">Analyze</button></td>
-            `;
-            tbody.appendChild(tr);
-        });
+        allStocks = await response.json();
+        renderTabularStocks();
     } catch (err) {
         showToast('Error loading dataset', 'error');
     }
+}
+
+function renderTabularStocks() {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return;
+    
+    let filtered = allStocks.filter(stock => {
+        const matchesSearch = stock.ticker.toLowerCase().includes(searchQuery) || 
+                              getName(stock.ticker).toLowerCase().includes(searchQuery);
+        return matchesSearch;
+    });
+
+    tbody.innerHTML = '';
+    
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 2rem;">No assets match your search</td></tr>';
+        return;
+    }
+
+    filtered.forEach(stock => {
+        const tr = document.createElement('tr');
+        const changeClass = stock.change >= 0 ? 'trend-up' : 'trend-down';
+        
+        tr.innerHTML = `
+            <td>
+                <div class="ticker-badge">
+                    <span class="ticker-symbol">${stock.ticker}</span>
+                    <span style="font-size: 0.8rem;">${getName(stock.ticker)}</span>
+                </div>
+            </td>
+            <td>$${stock.price.toFixed(2)}</td>
+            <td class="${changeClass}">${stock.change >= 0 ? '+' : ''}${stock.change.toFixed(2)}%</td>
+            <td><span class="signal-pill signal-${stock.signal.toLowerCase()}">${stock.signal}</span></td>
+            <td>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div class="confidence-bar-container">
+                        <div class="confidence-fill" style="width: ${stock.confidence}%"></div>
+                    </div>
+                    <span style="font-size: 0.8rem;">${stock.confidence.toFixed(1)}%</span>
+                </div>
+            </td>
+            <td>${stock.accuracy.toFixed(1)}%</td>
+            <td><button class="btn-primary" onclick="window.location.href='analysis.html?ticker=${stock.ticker}'" style="padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.7rem;">Analyze</button></td>
+        `;
+        tbody.appendChild(tr);
+    });
 }
 
 // --- Detailed Analysis Page ---
@@ -417,6 +433,17 @@ function clearNotifications() {
 document.addEventListener('DOMContentLoaded', () => { 
     updateUIForAuth(); 
     initNotifications(); 
+    
+    // Topbar Search Setup
+    const searchInput = document.getElementById('topSearch');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            searchQuery = e.target.value.toLowerCase();
+            
+            if (document.getElementById('stocksGrid')) renderStocks();
+            if (document.getElementById('tableBody')) renderTabularStocks();
+        });
+    }
 });
 
 // Dashboard specific init
@@ -425,12 +452,11 @@ if (document.getElementById('stocksGrid')) {
     setInterval(fetchStocks, 30000);
 }
 // Alerts Page Init
-if (document.getElementById('subscribeForm')) {
+if (document.getElementById('subscribeForm') && document.getElementById('alertEmail')) {
     document.getElementById('subscribeForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        console.log('Subscription form submitted!');
-        const email = document.getElementById('email').value;
-        const btn = e.target.querySelector('button');
+        const email = document.getElementById('alertEmail').value;
+        const btn = document.getElementById('activateBtn');
         const originalText = btn.textContent;
 
         try {
