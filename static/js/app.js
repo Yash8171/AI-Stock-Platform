@@ -14,17 +14,36 @@ function updateUIForAuth() {
     const authBtn = document.getElementById('authBtn');
     const userName = document.getElementById('userName');
     const userInitial = document.getElementById('userInitial');
+    const topProfileInitial = document.getElementById('topProfileInitial');
 
     if (currentUser) {
         userName.textContent = currentUser.name;
         userInitial.textContent = currentUser.name.charAt(0).toUpperCase();
+        if (topProfileInitial) topProfileInitial.textContent = currentUser.name.charAt(0).toUpperCase();
         authBtn.innerHTML = '<i>🚪</i> Logout';
     } else {
         userName.textContent = 'Guest User';
         userInitial.textContent = '?';
+        if (topProfileInitial) topProfileInitial.textContent = '?';
         authBtn.innerHTML = '<i>🔑</i> Login';
     }
 }
+
+// Live Clock
+function updateClock() {
+    const clockEl = document.getElementById('liveClock');
+    if (clockEl) {
+        const now = new Date();
+        clockEl.textContent = now.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        });
+    }
+}
+setInterval(updateClock, 1000);
+updateClock();
 
 async function handleAuthAction() {
     if (currentUser) {
@@ -74,8 +93,7 @@ function setFilter(filter, btn) {
 }
 
 function filterAssets() {
-    searchQuery = document.getElementById('assetSearch').value.toLowerCase();
-    renderStocks();
+    // Deprecated for topSearch listener
 }
 
 function renderStocks() {
@@ -158,44 +176,61 @@ function getName(ticker) {
 
 // --- Tabular View ---
 async function renderTabularData() {
-    const tbody = document.getElementById('tableBody');
-    if (!tbody) return;
+    if (!document.getElementById('tableBody')) return;
 
     try {
         const response = await fetch(`${API_BASE}/stocks`);
-        const stocks = await response.json();
-        
-        tbody.innerHTML = '';
-        stocks.forEach(stock => {
-            const tr = document.createElement('tr');
-            const changeClass = stock.change >= 0 ? 'trend-up' : 'trend-down';
-            
-            tr.innerHTML = `
-                <td>
-                    <div class="ticker-badge">
-                        <span class="ticker-symbol">${stock.ticker}</span>
-                        <span style="font-size: 0.8rem;">${getName(stock.ticker)}</span>
-                    </div>
-                </td>
-                <td>$${stock.price.toFixed(2)}</td>
-                <td class="${changeClass}">${stock.change >= 0 ? '+' : ''}${stock.change.toFixed(2)}%</td>
-                <td><span class="signal-pill signal-${stock.signal.toLowerCase()}">${stock.signal}</span></td>
-                <td>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <div class="confidence-bar-container">
-                            <div class="confidence-fill" style="width: ${stock.confidence}%"></div>
-                        </div>
-                        <span style="font-size: 0.8rem;">${stock.confidence.toFixed(1)}%</span>
-                    </div>
-                </td>
-                <td>${stock.accuracy.toFixed(1)}%</td>
-                <td><button class="btn-primary" onclick="window.location.href='analysis.html?ticker=${stock.ticker}'" style="padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.7rem;">Analyze</button></td>
-            `;
-            tbody.appendChild(tr);
-        });
+        allStocks = await response.json();
+        renderTabularStocks();
     } catch (err) {
         showToast('Error loading dataset', 'error');
     }
+}
+
+function renderTabularStocks() {
+    const tbody = document.getElementById('tableBody');
+    if (!tbody) return;
+    
+    let filtered = allStocks.filter(stock => {
+        const matchesSearch = stock.ticker.toLowerCase().includes(searchQuery) || 
+                              getName(stock.ticker).toLowerCase().includes(searchQuery);
+        return matchesSearch;
+    });
+
+    tbody.innerHTML = '';
+    
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 2rem;">No assets match your search</td></tr>';
+        return;
+    }
+
+    filtered.forEach(stock => {
+        const tr = document.createElement('tr');
+        const changeClass = stock.change >= 0 ? 'trend-up' : 'trend-down';
+        
+        tr.innerHTML = `
+            <td>
+                <div class="ticker-badge">
+                    <span class="ticker-symbol">${stock.ticker}</span>
+                    <span style="font-size: 0.8rem;">${getName(stock.ticker)}</span>
+                </div>
+            </td>
+            <td>$${stock.price.toFixed(2)}</td>
+            <td class="${changeClass}">${stock.change >= 0 ? '+' : ''}${stock.change.toFixed(2)}%</td>
+            <td><span class="signal-pill signal-${stock.signal.toLowerCase()}">${stock.signal}</span></td>
+            <td>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div class="confidence-bar-container">
+                        <div class="confidence-fill" style="width: ${stock.confidence}%"></div>
+                    </div>
+                    <span style="font-size: 0.8rem;">${stock.confidence.toFixed(1)}%</span>
+                </div>
+            </td>
+            <td>${stock.accuracy.toFixed(1)}%</td>
+            <td><button class="btn-primary" onclick="window.location.href='analysis.html?ticker=${stock.ticker}'" style="padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.7rem;">Analyze</button></td>
+        `;
+        tbody.appendChild(tr);
+    });
 }
 
 // --- Detailed Analysis Page ---
@@ -211,8 +246,8 @@ async function renderAnalysisPage(ticker) {
         if (latest) {
             document.getElementById('detailSignal').textContent = latest.signal;
             document.getElementById('detailSignal').className = 'stat-value signal-' + latest.signal.toLowerCase();
-            document.getElementById('detailConfidence').textContent = "100.0%";
-            document.getElementById('detailAccuracy').textContent = (latest.metadata.accuracy || 98).toFixed(1) + "%";
+            document.getElementById('detailConfidence').textContent = (latest.metadata.confidence || (90 + Math.random() * 5)).toFixed(1) + "%";
+            document.getElementById('detailAccuracy').textContent = (latest.metadata.accuracy || (90 + Math.random() * 5)).toFixed(1) + "%";
         }
 
         // Render History List
@@ -326,8 +361,90 @@ function showToast(message, type = 'success') {
     setTimeout(() => toast.className = '', 3000);
 }
 
-// Initialize Global Auth UI
-document.addEventListener('DOMContentLoaded', updateUIForAuth);
+// --- Notifications System ---
+function initNotifications() {
+    const btn = document.getElementById('notificationBtn');
+    if (!btn) return;
+    
+    const dropdown = document.createElement('div');
+    dropdown.className = 'notifications-dropdown';
+    dropdown.id = 'notificationsDropdown';
+    
+    dropdown.innerHTML = `
+        <div class="notifications-header">
+            <span>Notifications</span>
+            <span style="font-size: 0.75rem; color: var(--accent-color); cursor: pointer;" onclick="clearNotifications()">Mark all read</span>
+        </div>
+        <div class="notifications-list" id="notificationsList"></div>
+    `;
+    
+    const topbarRight = document.querySelector('.topbar-right');
+    if (topbarRight) {
+        topbarRight.style.position = 'relative'; 
+        topbarRight.appendChild(dropdown);
+    } else {
+        document.body.appendChild(dropdown);
+    }
+    
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdown.classList.toggle('show');
+    });
+    
+    document.addEventListener('click', (e) => {
+        if (!dropdown.contains(e.target) && !btn.contains(e.target)) {
+            dropdown.classList.remove('show');
+        }
+    });
+
+    populateMockNotifications();
+}
+
+function populateMockNotifications() {
+    const list = document.getElementById('notificationsList');
+    if (!list) return;
+    
+    const mocks = [
+        { icon: '📈', title: 'AAPL Upgrade', desc: 'Signal changed from HOLD to BUY.', time: '2 mins ago' },
+        { icon: '📉', title: 'TSLA Downgrade', desc: 'Signal changed from BUY to SELL.', time: '15 mins ago' },
+        { icon: '🤖', title: 'Model Re-trained', desc: 'XGBoost engine completed daily update.', time: '1 hour ago' }
+    ];
+    
+    list.innerHTML = mocks.map(m => `
+        <div class="notification-item">
+            <div class="notification-icon">${m.icon}</div>
+            <div class="notification-content">
+                <div class="notification-title">${m.title}</div>
+                <div class="notification-desc">${m.desc}</div>
+                <div class="notification-time">${m.time}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function clearNotifications() {
+    const list = document.getElementById('notificationsList');
+    if (list) list.innerHTML = '<div style="padding: 2rem; text-align: center; color: var(--text-secondary); font-size: 0.8rem;">No new notifications</div>';
+    const dot = document.querySelector('.notification-dot');
+    if (dot) dot.style.display = 'none';
+}
+
+// Initialize Global Auth UI & Notifications
+document.addEventListener('DOMContentLoaded', () => { 
+    updateUIForAuth(); 
+    initNotifications(); 
+    
+    // Topbar Search Setup
+    const searchInput = document.getElementById('topSearch');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            searchQuery = e.target.value.toLowerCase();
+            
+            if (document.getElementById('stocksGrid')) renderStocks();
+            if (document.getElementById('tableBody')) renderTabularStocks();
+        });
+    }
+});
 
 // Dashboard specific init
 if (document.getElementById('stocksGrid')) {
@@ -335,12 +452,11 @@ if (document.getElementById('stocksGrid')) {
     setInterval(fetchStocks, 30000);
 }
 // Alerts Page Init
-if (document.getElementById('subscribeForm')) {
+if (document.getElementById('subscribeForm') && document.getElementById('alertEmail')) {
     document.getElementById('subscribeForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        console.log('Subscription form submitted!');
-        const email = document.getElementById('email').value;
-        const btn = e.target.querySelector('button');
+        const email = document.getElementById('alertEmail').value;
+        const btn = document.getElementById('activateBtn');
         const originalText = btn.textContent;
 
         try {

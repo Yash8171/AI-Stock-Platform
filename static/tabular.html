@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Market Analytics | AlgoSignal</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css?v=5">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         .table-container {
@@ -77,12 +77,15 @@
                 <span>AlgoSignal <small style="font-size: 0.6rem; color: var(--accent-color); vertical-align: super;">v3.0 (NEW)</small></span>
             </div>
             <ul class="nav-links">
-                <li class="nav-item"><a href="index.html" class="nav-link"><i>📊</i> Dashboard</a></li>
+                <li class="nav-item"><a href="index.html" class="nav-link"><i>⊞</i> Dashboard</a></li>
+                <li class="nav-item"><a href="engine.html" class="nav-link"><i>🧠</i> Signal Engine</a></li>
+                <li class="nav-item"><a href="backtesting.html" class="nav-link"><i>🕒</i> Backtesting</a></li>
+                <li class="nav-item"><a href="tabular.html" class="nav-link active"><i>📊</i> Portfolio Analytics</a></li>
                 <li class="nav-item"><a href="alerts.html" class="nav-link"><i>🔔</i> Alerts</a></li>
-                <li class="nav-item"><a href="tabular.html" class="nav-link active"><i>🧠</i> Analytics</a></li>
-                <li class="nav-item"><a href="report.html" class="nav-link"><i>📋</i> Reports</a></li>
+                <li class="nav-item"><a href="market.html" class="nav-link"><i>📉</i> Market Data</a></li>
+                <li class="nav-item"><a href="settings.html" class="nav-link"><i>⚙️</i> Settings</a></li>
             </ul>
-             <div id="userProfile" class="user-sidebar-bottom">
+            <div id="userProfile" class="user-sidebar-bottom">
                 <div class="user-info">
                     <div class="avatar" id="userInitial">?</div>
                     <div>
@@ -97,6 +100,25 @@
         </aside>
 
         <main class="main-content">
+            <nav class="topbar">
+                <div class="topbar-search">
+                    <i>🔍</i>
+                    <input type="text" id="topSearch" placeholder="Search stock...">
+                </div>
+                <div class="topbar-right">
+                    <div class="topbar-clock">
+                        <i style="color:var(--text-secondary)">🕒</i>
+                        <span id="liveClock">Loading...</span>
+                    </div>
+                    <div class="topbar-icon" id="notificationBtn">
+                        <i>🔔</i>
+                        <span class="notification-dot"></span>
+                    </div>
+                    <div class="topbar-profile" id="topProfileInitial">?</div>
+                </div>
+            </nav>
+
+            <div class="page-container">
             <header class="header">
                 <div>
                     <h1>Market Intelligence Table</h1>
@@ -122,11 +144,13 @@
                     </tbody>
                 </table>
             </div>
+            </div>
+            
         </main>
     </div>
 
     <div id="toast"></div>
-    <script src="js/app.js?v=2"></script>
+    <script src="js/app.js?v=5"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             renderTabularData();
